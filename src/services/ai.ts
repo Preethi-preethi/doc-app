@@ -37,7 +37,7 @@ export const QwenAPI = {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    model: "qwen/qwen3.5-397b-a17b",
+                    model: "meta/llama-3.1-70b-instruct",
                     messages: [
                         { "role": "system", "content": systemPrompt },
                         { "role": "user", "content": userPrompt }
@@ -50,30 +50,40 @@ export const QwenAPI = {
                 })
             });
 
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error (${response.status}): ${errorText}`);
+            }
+
             if (!response.body) throw new Error("ReadableStream not yet supported in this browser.")
 
             const reader = response.body.getReader()
             const decoder = new TextDecoder("utf-8")
             let fullText = ""
+            let buffer = ""
 
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
 
-                const chunk = decoder.decode(value, { stream: true })
-                const lines = chunk.split('\n')
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split('\n')
+
+                // Keep the last partial line in the buffer
+                buffer = lines.pop() || ""
 
                 for (const line of lines) {
-                    if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                    const trimmedLine = line.trim()
+                    if (trimmedLine.startsWith('data: ') && trimmedLine !== 'data: [DONE]') {
                         try {
-                            const data = JSON.parse(line.slice(6))
-                            if (data.choices[0].delta?.content) {
+                            const data = JSON.parse(trimmedLine.slice(6))
+                            if (data.choices && data.choices[0].delta?.content) {
                                 const token = data.choices[0].delta.content
                                 fullText += token
                                 if (onStreamToken) onStreamToken(token)
                             }
                         } catch (e) {
-                            console.warn("Could not parse stream delta", line)
+                            console.warn("Could not parse stream delta", trimmedLine)
                         }
                     }
                 }

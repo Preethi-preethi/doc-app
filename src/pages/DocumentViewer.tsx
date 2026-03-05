@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { QwenAPI } from '../services/ai'
 import { useAppStore } from '../store/useAppStore'
-import { supabase } from '../lib/supabase'
+import { storage } from '../lib/storage'
 import { Save, Share2, CheckCircle2 } from 'lucide-react'
 
 export const DocumentViewer = () => {
@@ -57,26 +57,22 @@ export const DocumentViewer = () => {
 
         try {
             const docName = `Documentation (${documentationMode}) - ${new Date().toLocaleDateString()}`
-            const { data, error: sbError } = await supabase
-                .from('documents')
-                .insert({
-                    user_id: user.id,
-                    title: docName,
-                    content: content,
-                    mode: documentationMode,
-                    is_public: false
-                })
-                .select()
-                .single()
 
-            if (sbError) throw sbError
+            // Use local storage instead of Supabase
+            const newDoc = storage.saveDocument({
+                user_id: user.email, // using email as profileName
+                title: docName,
+                content: content,
+                mode: documentationMode,
+                is_public: false
+            })
 
             setIsSaved(true)
-            if (data) setDocumentId(data.id)
+            setDocumentId(newDoc.id)
 
         } catch (err: any) {
             console.error("Failed to save:", err)
-            alert("Failed to save to cloud.")
+            alert("Failed to save to local storage.")
         } finally {
             setIsSaving(false)
         }
@@ -85,11 +81,11 @@ export const DocumentViewer = () => {
     const handleShare = async () => {
         if (!documentId) return
         try {
-            // make public
-            await supabase.from('documents').update({ is_public: true }).eq('id', documentId)
-            const shareUrl = `${window.location.origin}/share/${documentId}`
+            // make public in local storage
+            storage.updateDocumentVisibility(documentId, true)
+            const shareUrl = `${window.location.origin}/#/share/${documentId}`
             await navigator.clipboard.writeText(shareUrl)
-            alert("Link copied to clipboard! Anyone with the link can view.")
+            alert("Link copied to clipboard! Anyone with the link on this machine can view.")
         } catch (err) {
             alert("Error sharing document.")
         }

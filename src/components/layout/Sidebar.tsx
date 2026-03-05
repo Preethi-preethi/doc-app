@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
 import { FileSearch, LayoutDashboard, Settings, FileText, LogOut } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
-import { supabase } from '../../lib/supabase'
+import { storage } from '../../lib/storage'
 
 export const Sidebar = () => {
     const location = useLocation()
-    const { user } = useAppStore()
+    const { user, setUser } = useAppStore()
 
     const links = [
         { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
@@ -14,8 +14,9 @@ export const Sidebar = () => {
         { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
     ]
 
-    const handleSignOut = async () => {
-        await supabase.auth.signOut()
+    const handleSignOut = () => {
+        storage.setCurrentUser(null)
+        setUser(null)
     }
 
     return (
@@ -51,7 +52,7 @@ export const Sidebar = () => {
                     </div>
                     <div className="ml-1 truncate">
                         <p className="text-slate-200 font-medium truncate" title={user?.email || 'User'}>
-                            {user?.email?.split('@')[0] || 'User'}
+                            {user?.email || 'User'}
                         </p>
                         <p className="text-slate-500 text-xs">Online</p>
                     </div>

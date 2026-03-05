@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { storage } from '../lib/storage'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
@@ -15,15 +15,11 @@ export const SharedDocument = () => {
         const fetchDoc = async () => {
             if (!id) return
             try {
-                const { data, error: sbError } = await supabase
-                    .from('documents')
-                    .select('*')
-                    .eq('id', id)
-                    .eq('is_public', true)
-                    .single()
+                // Get doc from local storage
+                const data = storage.getDocument(id)
 
-                if (sbError) throw sbError
-                if (!data) throw new Error("Document not found or is not public")
+                if (!data) throw new Error("Document not found")
+                if (!data.is_public) throw new Error("Document is not public")
 
                 setDoc(data)
             } catch (err: any) {

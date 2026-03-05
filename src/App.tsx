@@ -7,7 +7,7 @@ import { DocumentViewer } from './pages/DocumentViewer'
 import { SharedDocument } from './pages/SharedDocument'
 import { Login } from './pages/Login'
 import { useAppStore } from './store/useAppStore'
-import { supabase } from './lib/supabase'
+import { storage } from './lib/storage'
 
 // A wrapper to protect routes
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -22,19 +22,25 @@ export const App = () => {
     const { setUser } = useAppStore()
 
     useEffect(() => {
-        // Initial session check
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null)
-        })
+        // Initial session check from local storage
+        const profileName = storage.getCurrentUser();
+        if (profileName) {
+            setUser({ email: profileName }); // Keep same shape user.email for minimal disruption
+        }
 
-        // Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null)
-        })
+        // Listen for storage events (e.g. from other tabs or logout)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'doc_app_current_user') {
+                if (e.newValue) {
+                    setUser({ email: e.newValue });
+                } else {
+                    setUser(null);
+                }
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
 
-        return () => subscription.unsubscribe()
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, [setUser])
 
     return (
